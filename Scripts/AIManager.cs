@@ -42,19 +42,43 @@ public class AIManager : MonoBehaviour {
             aiCars[aiCars.Count - 1].setManager(this);
         }
         uiManager.setGenText(generation);
+        uiManager.setTimeText(genLength);
 
         Camera.main.transform.parent = aiCars[0].transform;
     }
 
+    void fullReset() {
+        generation = 0;
+        startNewGen(true);
+        uiManager.setTimeText(genLength);
+    }
+
     void Update() {
+        if (Input.GetKeyUp(KeyCode.Alpha1)) {
+            genLength = 10.0f;
+            fullReset();
+        }
+        else if (Input.GetKeyUp(KeyCode.Alpha2)) {
+            genLength = 30.0f;
+            fullReset();
+        }
+        else if (Input.GetKeyUp(KeyCode.Alpha3)) {
+            genLength = 60.0f;
+            fullReset();
+        }
+        else if (Input.GetKeyUp(KeyCode.Alpha4)) {
+            genLength = Mathf.Infinity;
+            fullReset();
+        }
+
         if (Time.time - startTime > genLength) {
             startNewGen();
         }
     }
 
-    public void startNewGen() {
+    public void startNewGen(bool fullReset = false) {
         Debug.Log(Time.time - startTime);
-        resetCars();
+        resetCars(fullReset);
         resetGoals();
         generation++;
         mutationRate = Mathf.Max(1 - generation * 0.03f, 0.05f);
@@ -62,26 +86,38 @@ public class AIManager : MonoBehaviour {
         startTime = Time.time;
     }
 
-    void resetCars() {
-        List<HoverCarAI.Score> scores = new List<HoverCarAI.Score>();
-        foreach (HoverCarAI car in aiCars) {
-            scores.Add(car.getScore());
+    void resetCars(bool fullReset) {
+        if (fullReset == true) {
+            foreach (HoverCarAI car in aiCars) {
+                car.setAIVars();
+                car.reset();
+            }
         }
-        scores.Sort(HoverCarAI.Score.sortFunction);
+        else {
+            List<HoverCarAI.Score> scores = new List<HoverCarAI.Score>();
+            foreach (HoverCarAI car in aiCars) {
+                scores.Add(car.getScore());
+            }
+            scores.Sort(HoverCarAI.Score.sortFunction);
 
-        aiCars[0].setAIVars(scores[0].car.getAIVars());
-        aiCars[0].reset();
-        aiCars[0].GetComponent<Renderer>().material.color = Color.blue;
-        for (int i = 1; i < aiCars.Count * 0.95f; i++) {
-            HoverCarAI.AIVars aiVars = aiCars[0].getAIVars();
-            aiVars.mutate(mutationRate);
-            aiCars[i].setAIVars(aiVars);
-            aiCars[i].reset();
-        }
-        for (int i = Mathf.RoundToInt(aiCars.Count * 0.95f); i < aiCars.Count; i++) {
-            aiCars[i].setAIVars();
-            aiCars[i].reset();
-            aiCars[i].GetComponent<Renderer>().material.color = Color.green;
+            // Copy best previous car
+            aiCars[0].setAIVars(scores[0].car.getAIVars());
+            aiCars[0].reset();
+            aiCars[0].GetComponent<Renderer>().material.color = Color.blue;
+
+            // Create mutation based on best car
+            for (int i = 1; i < aiCars.Count * 0.95f; i++) {
+                HoverCarAI.AIVars aiVars = aiCars[0].getAIVars();
+                aiVars.mutate(mutationRate);
+                aiCars[i].setAIVars(aiVars);
+                aiCars[i].reset();
+            }
+            // Fresh new random mutation
+            for (int i = Mathf.RoundToInt(aiCars.Count * 0.95f); i < aiCars.Count; i++) {
+                aiCars[i].setAIVars();
+                aiCars[i].reset();
+                aiCars[i].GetComponent<Renderer>().material.color = Color.green;
+            }
         }
     }
 
